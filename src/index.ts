@@ -1,0 +1,7 @@
+export { buildReportPptx, repairPptxPackage, xmlSafe, RADIUS } from './pptx'
+export type { BuildOptions, PlacedBox } from './pptx'
+export { reportSlides, MAX_TABLE_ROWS } from './slides'
+export type { SlideChart, SlideFigure, SlideFrame } from './slides'
+export { reportFilename, reportProvenanceLine, reportRangeLabel, reportSummaryLine } from './types'
+export type { ReportModel } from './types'
+export { sampleModel, richModel } from './sample-model'

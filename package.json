@@ -1,0 +1,24 @@
+{
+  "name": "pptx-report-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Turns a structured report model into a designed, layout-checked PowerPoint deck.",
+  "main": "src/index.ts",
+  "scripts": {
+    "sample": "tsx scripts/render.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check:office": "CHECK_SOFFICE=1 vitest run src/pptx-layout.test.ts"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pptxgenjs": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
+  }
+}
