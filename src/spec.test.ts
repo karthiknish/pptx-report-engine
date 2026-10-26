@@ -21,7 +21,7 @@ describe('deck spec', () => {
 
   it('builds a deck whose boxes stay on the slide and never overlap', async () => {
     let slides: PlacedBox[][] = []
-    const bytes = await buildDeckFromSpec(spec, { brand: 'Acme', inspect: (s) => { slides = s } })
+    const bytes = await buildDeckFromSpec(spec, { brand: 'Northgate', inspect: (s) => { slides = s } })
     expect(slides.length).toBeGreaterThanOrEqual(5)
     for (const boxes of slides) {
       for (const b of boxes) {
@@ -37,5 +37,30 @@ describe('deck spec', () => {
   it('needs a cover', async () => {
     const { buildDeck } = await import('./pptx')
     await expect(buildDeck([])).rejects.toThrow(/cover/)
+  })
+})
+
+describe('layout check and trace', () => {
+  it('finds no problems in the example deck', async () => {
+    const { checkLayout } = await import('./check')
+    let slides: PlacedBox[][] = []
+    await buildDeckFromSpec(spec, { inspect: (s) => { slides = s } })
+    expect(checkLayout(slides)).toEqual([])
+  })
+
+  it('reports a problem when two boxes collide', async () => {
+    const { checkLayout } = await import('./check')
+    const a = { x: 1, y: 1, w: 2, h: 1, what: 'a' }
+    expect(checkLayout([[a, { ...a, what: 'b', x: 2 }]]).map((p) => p.message)).toEqual(['a meets b'])
+  })
+
+  it('traces the drawing calls of every slide, background first', async () => {
+    let ops: import('./pptx').DrawOp[][] = []
+    let boxes: PlacedBox[][] = []
+    await buildDeckFromSpec(spec, { trace: (o) => { ops = o }, inspect: (b) => { boxes = b } })
+    expect(ops.length).toBe(boxes.length)
+    expect(ops[0]![0]!.op).toBe('background')
+    expect(ops.some((s) => s.some((o) => o.op === 'chart'))).toBe(true)
+    expect(ops.some((s) => s.some((o) => o.op === 'table'))).toBe(true)
   })
 })

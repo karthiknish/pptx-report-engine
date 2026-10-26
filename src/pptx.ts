@@ -819,6 +819,34 @@ export type BuildOptions = {
   logoBlue?: string | null
   /** Receives every box placed on every slide, in slide order, so a test can check the layout. */
   inspect?: (slides: PlacedBox[][]) => void
+  /** Receives every drawing call made on every slide, in slide order: enough to draw a preview of the deck. */
+  trace?: (slides: DrawOp[][]) => void
+}
+
+/** One call the engine made to draw a slide, as pptxgenjs received it. */
+export type DrawOp = { op: 'background' | 'text' | 'shape' | 'chart' | 'table' | 'image'; args: unknown[] }
+
+const TRACED: Record<string, DrawOp['op']> = { addText: 'text', addShape: 'shape', addChart: 'chart', addTable: 'table', addImage: 'image' }
+
+/** Wraps `pres.addSlide` so each slide's drawing calls are kept as they are made. */
+function traceSlides(pres: Pres): DrawOp[][] {
+  const out: DrawOp[][] = []
+  const addSlide = pres.addSlide.bind(pres) as () => Slide
+  ;(pres as unknown as { addSlide: () => Slide }).addSlide = () => {
+    const slide = addSlide()
+    const ops: DrawOp[] = []
+    out.push(ops)
+    for (const [name, op] of Object.entries(TRACED)) {
+      const original = (slide as unknown as Record<string, (...x: unknown[]) => unknown>)[name]!.bind(slide)
+      ;(slide as unknown as Record<string, unknown>)[name] = (...args: unknown[]) => {
+        // pptxgenjs rewrites the options it is given (inches to EMU), so keep a copy as it was drawn.
+        ops.push({ op, args: structuredClone(args) })
+        return original(...args)
+      }
+    }
+    return slide
+  }
+  return out
 }
 
 export async function buildDeck(frames: SlideFrame[], options: BuildOptions = {}): Promise<ArrayBuffer> {
@@ -835,6 +863,7 @@ export async function buildDeck(frames: SlideFrame[], options: BuildOptions = {}
   pres.layout = 'LAYOUT_WIDE'
   pres.author = brand
   pres.title = xmlSafe(cover.title)
+  const traced = options.trace ? traceSlides(pres) : null
 
   const planned = plan(body)
   const total = planned.length + 1
@@ -842,6 +871,13 @@ export async function buildDeck(frames: SlideFrame[], options: BuildOptions = {}
   planned.forEach((frame, i) => frameSlide(pres, frame, { logoBlue, page: i + 2, total }))
   closingSlide(pres, logoWhite, cover.provenance, brand)
 
+  if (traced) {
+    // A background is a property, not a call; read it back once the slide is drawn.
+    ;(pres as unknown as { slides: { background?: unknown }[] }).slides.forEach((s, i) => {
+      if (s.background) traced[i]?.unshift({ op: 'background', args: [s.background] })
+    })
+    options.trace?.(traced)
+  }
   if (options.inspect) {
     const out: PlacedBox[][] = []
     // pptxgenjs keeps its slides in order; read the boxes back in the same order.

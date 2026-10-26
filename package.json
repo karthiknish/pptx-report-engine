@@ -9,16 +9,25 @@
     "sample": "tsx scripts/render.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check:office": "CHECK_SOFFICE=1 vitest run src/pptx-layout.test.ts"
+    "check:office": "CHECK_SOFFICE=1 vitest run src/pptx-layout.test.ts",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "jszip": "^3.10.1",
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.3",
+    "vite": "^7.3.7",
     "vitest": "^3.0.0"
   }
 }
