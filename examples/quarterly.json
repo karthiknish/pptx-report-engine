@@ -1,0 +1,36 @@
+{
+  "title": "Q3 2026 business review",
+  "subtitle": "Revenue grew and support load fell; churn needs attention.",
+  "period": "Jul to Sep 2026",
+  "footer": "Acme Ltd · Confidential",
+  "slides": [
+    {
+      "title": "Revenue is up 12% and churn is the one number moving the wrong way",
+      "kpis": [
+        { "label": "Revenue", "value": "£482k", "change": "+12%", "trend": [31, 34, 33, 38, 41, 44, 47] },
+        { "label": "New customers", "value": "64", "change": "+9" },
+        { "label": "Churn", "value": "3.1%", "change": "+0.6 pts", "better": "down" },
+        { "label": "Support tickets", "value": "1,240", "change": "-18%", "better": "down" }
+      ],
+      "bullets": ["Revenue growth came mostly from the three largest accounts.", "Churn is highest in accounts under six months old."],
+      "tones": ["good", "bad"]
+    },
+    {
+      "title": "Revenue climbed every month of the quarter",
+      "chart": { "format": "money", "points": [{ "label": "Jul", "value": 138000 }, { "label": "Aug", "value": 160000 }, { "label": "Sep", "value": 184000 }] },
+      "bullets": ["September was the strongest month on record."]
+    },
+    {
+      "title": "Enterprise brought in most of the revenue",
+      "table": { "columns": ["Segment", "Revenue", "Customers", "Churn"], "rows": [["Enterprise", "£290k", "12", "1.2%"], ["Mid-market", "£140k", "31", "3.8%"], ["Small business", "£52k", "96", "6.4%"]] }
+    },
+    {
+      "title": "Three things to do next quarter",
+      "actions": [
+        { "text": "Add an onboarding call for every new small-business account.", "why": "Churn is highest in the first six months.", "priority": "high" },
+        { "text": "Renew the two enterprise contracts that end in November.", "why": "They are 38% of revenue.", "priority": "high" },
+        { "text": "Keep support staffing flat.", "why": "Tickets fell 18% and response times held.", "priority": "medium" }
+      ]
+    }
+  ]
+}

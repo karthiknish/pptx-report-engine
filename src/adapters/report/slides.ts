@@ -15,20 +15,14 @@
  */
 import { reportSummaryLine } from './types'
 import { reportProvenanceLine, reportRangeLabel } from './types'
-import type { ReportDayPoint, ReportFigure, ReportModel, ReportStepMix, Recommendation } from './types'
-import { usd } from './format'
+import type { ReportFigure, ReportModel } from './types'
+import { usd } from '../../format'
+import { MAX_TABLE_ROWS, type Base, type SlideFigure, type SlideFrame } from '../../frames'
 
-/** How many table rows fit on a slide before it stops being readable. */
-export const MAX_TABLE_ROWS = 9
+export { MAX_TABLE_ROWS }
+
 /** Steps on the stacked-bar slide; the rest fold into "and N more". */
 const MAX_STEP_BARS = 8
-
-export type SlideFigure = Pick<ReportFigure, 'label' | 'value' | 'hint' | 'delta'> & {
-  /** Whether the move since last period is good news, bad news or neither. */
-  sentiment?: 'good' | 'bad' | 'note'
-  /** The last few days of this figure, drawn as a sparkline. */
-  spark?: number[]
-}
 
 /** Measures where a lower number is the better one. A rise in these is bad news. */
 const LOWER_IS_BETTER = /cost|spend|overdue|stuck|failed|wait|late|open/i
@@ -38,45 +32,7 @@ function sentimentOf(title: string, delta: ReportFigure['delta']): SlideFigure['
   return (delta.tone === 'up') !== LOWER_IS_BETTER.test(title) ? 'good' : 'bad'
 }
 
-export type SlideChart =
-  | { kind: 'bars'; points: ReportDayPoint[]; format: 'count' | 'usd'; limit?: { capUsd: number; usedUsd: number } | null }
-  | { kind: 'stacked'; steps: ReportStepMix[]; more: number }
 
-type Base = {
-  index: number
-  indexLabel: string
-  title: string
-  takeaway: string
-  notes: string
-  provenance: string
-  /** Two to four plain sentences that explain the numbers on this slide. */
-  bullets: string[]
-  /** How each bullet reads, where that is known: good news, bad news, or a plain fact. */
-  bulletTones?: ('good' | 'bad' | 'note')[]
-}
-
-type SlideKpi = { label: string; value: string; formula: string; inputs: string; note: string; tone: 'good' | 'bad' | 'note' }
-
-export type SlideFrame =
-  | { kind: 'cover'; title: string; subtitle: string; range: string; provenance: string }
-  | (Base & { kind: 'kpis'; kpis: SlideKpi[] })
-  | (Base & { kind: 'figures'; figures: SlideFigure[] })
-  | (Base & { kind: 'chart'; chart: SlideChart; figures: SlideFigure[] })
-  | (Base & {
-      kind: 'table'
-      columns: string[]
-      /** Capped for a slide. */
-      rows: string[][]
-      /** Every row, for the PDF, which has room for them. */
-      allRows?: string[][]
-      more: number
-      figures: SlideFigure[]
-    })
-  | (Base & {
-      kind: 'recommendations'
-      items: { severity: Recommendation['severity']; text: string; basis: string }[]
-    })
-  | { kind: 'closing'; provenance: string }
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -114,6 +70,7 @@ export function reportSlides(model: ReportModel): SlideFrame[] {
       subtitle: reportSummaryLine(model),
       range: `${model.industryLabel} · ${reportRangeLabel(model.range.from, model.range.to)}`,
       provenance,
+      generated: new Date(model.generatedAt).toISOString().slice(0, 16).replace('T', ' '),
     },
   ]
   let n = 0
@@ -201,7 +158,7 @@ export function reportSlides(model: ReportModel): SlideFrame[] {
         figLine(value.figures.find((f) => f.label === 'Cap')),
         figLine(value.figures.find((f) => /used/i.test(f.label))),
       ]),
-      chart: { kind: 'bars', points: cost, format: 'usd', limit: series?.limit ?? null },
+      chart: { kind: 'bars', points: cost, format: 'money', limit: series?.limit ? { cap: series.limit.capUsd, used: series.limit.usedUsd } : null },
       figures: figs(value.figures).slice(0, 3),
     })
   } else if (value && value.figures.length > 0) {
@@ -237,7 +194,7 @@ export function reportSlides(model: ReportModel): SlideFrame[] {
           used.length > 1 && weakest.successPct < 100 ? `${weakest.name} succeeded ${weakest.successPct}% of the time, the lowest.` : '',
         ],
       ),
-      chart: { kind: 'bars', points: spendBars.map((m) => ({ label: m.name, value: Math.round(m.spendUsd * 100) / 100 })), format: 'usd', limit: null },
+      chart: { kind: 'bars', points: spendBars.map((m) => ({ label: m.name, value: Math.round(m.spendUsd * 100) / 100 })), format: 'money', limit: null },
       figures: [
         { label: 'Calls', value: totalRuns.toLocaleString('en') },
         { label: 'Succeeded', value: `${Math.round((okRuns / totalRuns) * 100)}%` },

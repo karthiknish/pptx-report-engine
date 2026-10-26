@@ -1,20 +1,17 @@
 import { usd } from './format'
 import { BRAND } from './theme'
 import { pngSize } from './logo'
-import { reportProvenanceLine, reportRangeLabel, reportSummaryLine } from './types'
-import type { ReportModel } from './types'
-import { reportSlides, type SlideChart, type SlideFigure, type SlideFrame } from './slides'
+import type { SlideChart, SlideFigure, SlideFrame } from './frames'
 
 /**
- * The report, as a deck.
+ * The drawing engine: slide frames in, a .pptx out.
  *
- * Reads the same {@link ReportModel} the PDF reads and computes nothing, so
- * the two cannot disagree about a figure. Where they differ is only in what a
- * page can hold: the PDF prints a section's whole table, a slide takes the
- * first rows and says how many were left.
+ * It reads {@link SlideFrame}s and computes nothing, so a figure on a slide is
+ * exactly the string it was given. A slide takes the first rows of a table and
+ * says how many were left.
  *
- * `pptxgenjs` is imported inside the function, like `jspdf` and `exceljs`, so
- * a visitor who never exports a deck does not pay ~500KB for it.
+ * `pptxgenjs` is imported inside the function so a caller who never builds a
+ * deck does not load ~500KB of it.
  *
  * ## Layout
  *
@@ -49,7 +46,7 @@ const C = {
   /** The tone a card sits at on the page: a step darker, never a line or a shadow. */
   card: 'F4F0E8',
   amberSoft: 'F8EEDC',
-  /** The brochure's gold, for the one phrase on the cover that carries the state. */
+  /** Gold, for the one phrase on the cover that carries the state. */
   gold: 'E7B65C',
   /** Amber as text on a soft ground; the brand amber is too light to read at 14pt. */
   amberText: '8A5A06',
@@ -175,7 +172,7 @@ function placeLogo(slide: Slide, logo: string | null, x: number, y: number, h: n
 
 // --- slides -----------------------------------------------------------------
 
-function coverSlide(pres: Pres, model: ReportModel, logoWhite: string | null, brand: string) {
+function coverSlide(pres: Pres, cover: CoverFrame, logoWhite: string | null, brand: string) {
   const slide = pres.addSlide()
   slide.background = { color: C.deepOcean }
 
@@ -183,26 +180,27 @@ function coverSlide(pres: Pres, model: ReportModel, logoWhite: string | null, br
   if (!logo) put(slide, brand, { x: M, y: 0.8, w: CONTENT_W, h: 0.8, fontSize: PT.figure, bold: true, color: C.warmWhite }, 'wordmark')
 
   const titleW = 10.5
-  const titlePt = fitSize(model.title, titleW, [PT.figure, 48, PT.title], 2)
-  const title = clip(model.title, titlePt, titleW, 2)
+  const titlePt = fitSize(cover.title, titleW, [PT.figure, 48, PT.title], 2)
+  const title = clip(cover.title, titlePt, titleW, 2)
   const titleH = textHeight(title, titlePt, titleW)
   put(slide, title, { x: M, y: 2.8, w: titleW, h: titleH, fontSize: titlePt, bold: true, color: C.warmWhite }, 'title')
 
-  // The state of the desk, in the brochure's gold.
+  // The state of play, in gold.
   const sumY = 2.8 + titleH + 0.3
   const sumW = 10.5
-  const summary = clip(reportSummaryLine(model), PT.title, sumW, 2)
+  const summary = clip(cover.subtitle, PT.title, sumW, 2)
   put(slide, summary, { x: M, y: sumY, w: sumW, h: textHeight(summary, PT.title, sumW), fontSize: PT.title, color: C.gold }, 'summary')
 
-  const range = `${model.industryLabel} · ${reportRangeLabel(model.range.from, model.range.to)}`
-  put(slide, clip(range, PT.body, CONTENT_W, 1), { x: M, y: 6.0, w: CONTENT_W, h: 0.35, fontSize: PT.body, color: C.warmWhite }, 'range')
-  put(slide, `Generated ${new Date(model.generatedAt).toISOString().slice(0, 16).replace('T', ' ')}`, { x: M, y: 6.4, w: CONTENT_W, h: 0.3, fontSize: PT.small, color: C.paleBlue }, 'generated')
-  stampProvenance(slide, reportProvenanceLine(model), C.paleBlue)
+  put(slide, clip(cover.range, PT.body, CONTENT_W, 1), { x: M, y: 6.0, w: CONTENT_W, h: 0.35, fontSize: PT.body, color: C.warmWhite }, 'range')
+  if (cover.generated) put(slide, `Generated ${cover.generated}`, { x: M, y: 6.4, w: CONTENT_W, h: 0.3, fontSize: PT.small, color: C.paleBlue }, 'generated')
+  stampProvenance(slide, cover.provenance, C.paleBlue)
 }
+
+type CoverFrame = Extract<SlideFrame, { kind: 'cover' }>
 
 type Ctx = { logoBlue: string | null; page: number; total: number }
 
-/** The takeaway as the title, top left, at most two lines, on the brochure's warm paper. */
+/** The takeaway as the title, top left, at most two lines, on warm paper. */
 function contentSlide(pres: Pres, title: string, provenance: string, ctx: Ctx): Slide {
   const slide = pres.addSlide()
   slide.background = { color: C.bg }
@@ -419,7 +417,7 @@ function chartBlock(pres: Pres, slide: Slide, chart: SlideChart, caption: string
   const inner = { x: box.x + 0.15, y: top, w: box.w - 0.3, h: box.y + box.h - top - 0.12 - noteH }
   record(slide, { ...inner, what: 'chart' })
   if (chart.kind === 'bars') {
-    const moneyAxis = chart.format === 'usd'
+    const moneyAxis = chart.format === 'money'
     slide.addChart(
       pres.ChartType.bar,
       [{ name: moneyAxis ? 'Cost' : 'Finished', labels: chart.points.map((p) => xmlSafe(p.label)), values: chart.points.map((p) => finite(p.value)) }],
@@ -444,8 +442,8 @@ function chartBlock(pres: Pres, slide: Slide, chart: SlideChart, caption: string
       },
     )
     if (chart.limit) {
-      const pct = chart.limit.capUsd > 0 ? Math.round((chart.limit.usedUsd / chart.limit.capUsd) * 100) : 0
-      put(slide, clip(`Monthly cap ${usd(chart.limit.capUsd)} · ${usd(chart.limit.usedUsd)} used (${pct}%)`, PT.small, inner.w, 1), {
+      const pct = chart.limit.cap > 0 ? Math.round((chart.limit.used / chart.limit.cap) * 100) : 0
+      put(slide, clip(`Monthly cap ${usd(chart.limit.cap)} · ${usd(chart.limit.used)} used (${pct}%)`, PT.small, inner.w, 1), {
         x: inner.x, y: inner.y + inner.h + 0.04, w: inner.w, h: 0.28, fontSize: PT.small, color: C.muted, align: 'right',
       }, 'chart note')
     }
@@ -823,23 +821,26 @@ export type BuildOptions = {
   inspect?: (slides: PlacedBox[][]) => void
 }
 
-export async function buildReportPptx(model: ReportModel, options: BuildOptions = {}): Promise<ArrayBuffer> {
+export async function buildDeck(frames: SlideFrame[], options: BuildOptions = {}): Promise<ArrayBuffer> {
   const PptxGenJS = (await import('pptxgenjs')).default
 
-  const brand = options.brand?.trim() || 'Report'
+  const cover = frames.find((f): f is CoverFrame => f.kind === 'cover')
+  if (!cover) throw new Error('A deck needs a cover frame')
+  const body = frames.filter((f) => f.kind !== 'cover' && f.kind !== 'closing')
+  const brand = options.brand?.trim() || 'Deck'
   const logoWhite = options.logoWhite ?? null
   const logoBlue = options.logoBlue ?? null
 
   const pres = new PptxGenJS()
   pres.layout = 'LAYOUT_WIDE'
   pres.author = brand
-  pres.title = xmlSafe(model.title)
+  pres.title = xmlSafe(cover.title)
 
-  const frames = plan(reportSlides(model))
-  const total = frames.length + 1
-  coverSlide(pres, model, logoWhite, brand)
-  frames.forEach((frame, i) => frameSlide(pres, frame, { logoBlue, page: i + 2, total }))
-  closingSlide(pres, logoWhite, reportProvenanceLine(model), brand)
+  const planned = plan(body)
+  const total = planned.length + 1
+  coverSlide(pres, cover, logoWhite, brand)
+  planned.forEach((frame, i) => frameSlide(pres, frame, { logoBlue, page: i + 2, total }))
+  closingSlide(pres, logoWhite, cover.provenance, brand)
 
   if (options.inspect) {
     const out: PlacedBox[][] = []

@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import JSZip from 'jszip'
 import { describe, expect, it } from 'vitest'
-import { buildReportPptx, RADIUS, repairPptxPackage, type PlacedBox } from './pptx'
-import { richModel, sampleModel } from './sample-model'
-import type { ReportModel } from './types'
+import { RADIUS, repairPptxPackage, type PlacedBox } from './pptx'
+import { buildReportPptx, richModel, sampleModel, type ReportModel } from './adapters/report'
 
 const SLIDE_W = 13.33
 const SLIDE_H = 7.5

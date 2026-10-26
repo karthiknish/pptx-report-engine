@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Turns a structured report model into a designed, layout-checked PowerPoint deck.",
+  "description": "Describe a deck as JSON, get a designed, layout-checked PowerPoint file.",
   "main": "src/index.ts",
   "scripts": {
     "sample": "tsx scripts/render.ts",

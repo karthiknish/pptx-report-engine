@@ -1,7 +1,14 @@
-export { buildReportPptx, repairPptxPackage, xmlSafe, RADIUS } from './pptx'
+import { buildDeck, type BuildOptions } from './pptx'
+import { deckFrames, type DeckSpec } from './spec'
+
+export { buildDeck, repairPptxPackage, xmlSafe, RADIUS } from './pptx'
 export type { BuildOptions, PlacedBox } from './pptx'
-export { reportSlides, MAX_TABLE_ROWS } from './slides'
-export type { SlideChart, SlideFigure, SlideFrame } from './slides'
-export { reportFilename, reportProvenanceLine, reportRangeLabel, reportSummaryLine } from './types'
-export type { ReportModel } from './types'
-export { sampleModel, richModel } from './sample-model'
+export { deckFrames } from './spec'
+export type { DeckSpec, SlideSpec, KpiSpec, Tone } from './spec'
+export { MAX_TABLE_ROWS } from './frames'
+export type { SlideChart, SlideFigure, SlideFrame, ChartPoint, StackedBar } from './frames'
+
+/** A deck from a plain description of it. */
+export function buildDeckFromSpec(spec: DeckSpec, options: BuildOptions = {}): Promise<ArrayBuffer> {
+  return buildDeck(deckFrames(spec), options)
+}
